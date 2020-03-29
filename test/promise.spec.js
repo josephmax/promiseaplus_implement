@@ -27,5 +27,18 @@ describe('Promise basic Function Test',() => {
             expect(value).toBe('3');
             done();
         });
+    });
+    test('4. can be chained with then', done => {
+        const promise = new PromiseAp((resolve, reject) => {
+            resolve("4");
+        })
+        .then(data => {
+            expect(data).toBe('4');
+            return "4.1";
+        })
+        .then(data => {
+            expect(data).toBe('4.1');
+            done()
+        });
     })
 });
