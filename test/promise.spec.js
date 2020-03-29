@@ -20,7 +20,7 @@ describe('Promise basic Function Test',() => {
         });
     });
     test('3. resolve can be runned only once', done => {
-        const promise = new PromiseAp((resolve, reject) => {
+        new PromiseAp((resolve, reject) => {
             resolve("3");
             resolve("3.1");
         }).then(value => {
@@ -29,7 +29,7 @@ describe('Promise basic Function Test',() => {
         });
     });
     test('4. can be chained with then', done => {
-        const promise = new PromiseAp((resolve, reject) => {
+        new PromiseAp((resolve, reject) => {
             resolve("4");
         })
         .then(data => {
@@ -39,6 +39,20 @@ describe('Promise basic Function Test',() => {
         .then(data => {
             expect(data).toBe('4.1');
             done()
+        });
+    });
+    test('5. supports empty params for function then', done => {
+        new PromiseAp((resolve, reject) => {
+            resolve("5");
+        })
+        .then(data => {
+            expect(data).toBe('5');
+            return "5.1";
+        })
+        .then()
+        .then(data => {
+            expect(data).toBe('5.1');
+            done();
         });
     })
 });

@@ -34,7 +34,7 @@ function promiseResolution(
   reject: (reason: any) => any
 ): void {
   if (promise === value) {
-    throw new TypeError();
+    throw new Error('TypeError');
   }
   if (value instanceof PromiseAp) {
     if (value.status === PENDING) {
@@ -69,13 +69,13 @@ class PromiseAp<T> implements IPromiseAp<T> {
         if (this.status === PENDING) {
           this.status = FULFILLED;
           this.value = value;
-          this.resolveQueue.forEach(thenable => thenable());
+          this.resolveQueue.forEach(onFulfilled => onFulfilled());
         }
       }, 0);
     };
     fn(resolve);
   }
-  then(onFulfilled) {
+  then(onFulfilled = value => value) {
     if (this.status === PENDING) {
       return new PromiseAp(resolve => {
         this.resolveQueue.push(() => {
