@@ -33,8 +33,10 @@ class PromiseAp<T> implements IPromiseAp<T> {
         this.status = PENDING;
         this.resolveQueue = [];
         const resolve = (value) => {
-            this.status = FULFILLED;
-            this.resolveQueue.forEach((thenable) => thenable(value));
+            setTimeout(() => {
+                this.status = FULFILLED;
+                this.resolveQueue.forEach((thenable) => thenable(value));
+            }, 0);
         }
         const rejected = (reason) => {
             this.status = REJECTED;

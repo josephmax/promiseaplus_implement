@@ -11,4 +11,12 @@ describe('Promise basic Function Test',() => {
             done();
         });
     });
+    test('then should call sync functions and get value from then', done => {
+        (new PromiseAp(resolve => {
+            resolve('haha');
+        })).then(value => {
+            expect(value).toBe('haha');
+            done();
+        });
+    });
 });
