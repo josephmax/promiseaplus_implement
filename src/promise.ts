@@ -1,90 +1,116 @@
+import { isFn, isThenable, IThenable } from './utils';
 type TStatus = "pending" | "fulfilled" | "rejected";
-
-interface IException {}
-
-interface IThenable<T> {
-  then<R>(
-    onFulfilled?: (value: T) => R,
-    onRejected?: (IException) => R
-  ): IThenable<R>;
-}
 
 interface IPromiseAp<T = any> extends IThenable<T> {
   status: TStatus;
   value: T;
-  reason: IException;
+  reason: any;
+  catch<TResult = never>(onRejected: (reason: any) => TResult | IThenable<TResult>): IPromiseAp<T | TResult>;
+}
+
+interface IExecutor<T> {
+  (
+    onFulfilled: (value?: T | IThenable<T>) => void,
+    onRejected: (reason: any) => void
+  ): void;
 }
 
 interface IPromiseApConstructor<T> {
-  (fn): T;
-}
-
-interface IOnFulFilled {
-  (): void;
+  new (executor: IExecutor<T>): IPromiseAp;
+  resolve(value: T): IPromiseAp;
+  reject(reason: any): IPromiseAp;
 }
 
 const PENDING = "pending";
 const FULFILLED = "fulfilled";
 const REJECTED = "rejected";
 
-function promiseResolution(
-  promise: IPromiseAp,
-  value: any,
-  resolve: (val: any) => any,
-  reject: (reason: any) => any
-): void {
-  if (promise === value) {
-    throw new Error('TypeError');
+function promiseResolution(promise: PromiseAp, x: any): PromiseAp {
+  if (promise === x) {
+    throw new Error("TypeError");
   }
-  if (value instanceof PromiseAp) {
-    if (value.status === PENDING) {
+  if (x instanceof PromiseAp) {
+    if (x.status === PENDING) {
       // 持续pending直到
-    } else if (value.status === FULFILLED) {
-      resolve(value.value);
+      return x.then(promise.resolve.bind(promise), promise.reject.bind(promise));
+    } else if (x.status === FULFILLED) {
+      return promise.resolve(x.value);
     } else {
-      reject(value.reason);
+      return promise.reject(x.reason);
     }
-    return;
-  }
-  const type = typeof value;
-  if (value != null && (type === "object" || type === "function")) {
-    value.then();
+  } else if (isThenable(x)) {
+    // return resolve
+  } else {
+    return promise.resolve(x);
   }
 }
 
-interface IResolveFunction<T> {
-  (value: T): any;
-}
-
-class PromiseAp<T> implements IPromiseAp<T> {
-  private resolveQueue: IOnFulFilled[];
+class PromiseAp<T = any> implements IPromiseAp<T> {
+  private _resolveQueue: (<TResult = T>(value?: T) => TResult | IThenable<TResult>)[];
+  private _rejectQueue: (<TResult = never>(reason: any) => TResult | IThenable<TResult>)[];
+  private _next?: PromiseAp; // 下一个Promise的指针
   public value: T;
   public reason;
   public status: TStatus;
-  constructor(fn: (r: IResolveFunction<T>) => any) {
+  constructor(fn: IExecutor<T>) {
     this.status = PENDING;
-    this.resolveQueue = [];
-    const resolve: IResolveFunction<T> = value => {
-      setTimeout(() => {
-        if (this.status === PENDING) {
-          this.status = FULFILLED;
-          this.value = value;
-          this.resolveQueue.forEach(onFulfilled => onFulfilled());
-        }
-      }, 0);
-    };
-    fn(resolve);
+    this._resolveQueue = [];
+    this._rejectQueue = [];
+    fn(this.resolve.bind(this), this.reject.bind(this));
   }
-  then(onFulfilled = value => value) {
-    if (this.status === PENDING) {
-      return new PromiseAp(resolve => {
-        this.resolveQueue.push(() => {
-          resolve(onFulfilled(this.value));
-        });
-      });
+
+  static resolve<TResult>(fn: IExecutor<TResult>) {}
+  
+  walkQueue(promise: PromiseAp): void {
+    let queue, val, fn, x;
+    if (promise.status === FULFILLED) {
+      queue = promise._resolveQueue;
+      val = promise.value;
+    } else if (promise.status === REJECTED) {
+      queue = promise._rejectQueue;
+      val = promise.reason;
     }
-    // onFulfilled(this.value);
-    // return this;
+    while(fn = queue.shift()) {
+      x = fn.call(promise, val);
+      x && promiseResolution(promise._next, x);
+    }
+  }
+
+  resolve(value?: T): PromiseAp<T>{
+    if (this.status === REJECTED) {
+      throw Error('Illegal Invoke');
+    }
+    setTimeout(() => {
+      this.status = FULFILLED;
+      this.value = value;
+      this._resolveQueue.length && this.walkQueue(this);
+    });
+    return this;
+  }
+
+  reject(reason: any): PromiseAp<T> {
+    if (this.status === FULFILLED) {
+      throw Error('Illegal Invoke');
+    }
+    setTimeout(() => {
+      this.status = REJECTED;
+      this.reason = reason;
+      this._rejectQueue.length && this.walkQueue(this);
+    });
+    return this;
+  }
+  
+  then(onFulfilled = value => value, onRejected = value => value) {
+    const next = this._next || (this._next = new PromiseAp(() => {}));
+    if (this.status === PENDING) {
+      isFn(onFulfilled) && this._resolveQueue.push(onFulfilled);
+      isFn(onRejected) && this._rejectQueue.push(onRejected);
+    }
+    return next;
+  }
+
+  catch(onRejected = value => value) {
+    return this.then(undefined, onRejected);
   }
 }
 

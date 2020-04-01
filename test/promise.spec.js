@@ -54,5 +54,22 @@ describe('Promise basic Function Test',() => {
             expect(data).toBe('5.1');
             done();
         });
-    })
+    });
+    // test('6. should be able to pass the result then function from plain object', done => {
+    //     new PromiseAp((resolve, reject) => {
+    //       resolve("6");
+    //     })
+    //     .then(data => {
+    //         expect(data).toBe('6');
+    //         return {
+    //             then(r) {
+    //                 r("6.1");
+    //             }
+    //         };
+    //     })
+    //     .then(data => {
+    //         expect(data).toBe('6.1');
+    //         done();
+    //     });
+    // })
 });
